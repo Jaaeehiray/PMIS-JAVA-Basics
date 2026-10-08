@@ -1,3 +1,5 @@
+//Two numbers are entered by the user, x and n. Write a function to find the value of one number raised to the power of another i.e. 𝑥 𝑛 . 
+
 package Basic.Day_3;
 
 import java.util.Scanner;
