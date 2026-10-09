@@ -41,7 +41,7 @@ public void giveRaise(double percent){
     if (percent > 0) {
         double raiseAmmount = this.salary* (percent / 100.0);
         this.salary += raiseAmmount;
-        System.out.println(name + "received a" + percent + "% raise.New Salary: $" + this.salary);
+        System.out.println(name +  "received a"  + percent +  "% raise.New Salary: $" + this.salary);
     }else{
         System.out.println("Raise percentage must be positive.");
     }
