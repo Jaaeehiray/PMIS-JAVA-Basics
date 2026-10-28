@@ -1,0 +1,16 @@
+package Basic.Day_10;
+/*no parameters: () -> syos("hii");
+one para
+
+
+*/
+import java.util.*;
+import java.util.function.Predicate;
+public class lambda2 {
+    public static void main(String[] args) {
+        Predicate<Integer> isAdult = age -> age>=18;
+        System.out.println(isAdult.test(20));
+        System.out.println(isAdult.test(15));
+    }
+    
+}

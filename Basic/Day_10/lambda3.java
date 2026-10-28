@@ -1,0 +1,11 @@
+package Basic.Day_10;
+import java.util.function.*;
+
+ class lambda3 {
+    public static void main(String[] args) {
+        Function<String, Integer> getLength = name -> name.length();
+        System.out.println(getLength.apply("Java"));
+        System.out.println(getLength.apply("John")); 
+    }
+    
+}
