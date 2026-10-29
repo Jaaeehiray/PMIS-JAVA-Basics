@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QuickRelief</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #172b3a;
+            background: #f3f7f8;
+        }
+
+        body {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        header {
+            margin-bottom: 28px;
+            padding: 28px;
+            border-radius: 16px;
+            color: white;
+            background: #126b68;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header p {
+            margin: 0;
+            color: #d7efec;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        section {
+            padding: 22px;
+            border: 1px solid #dce6e8;
+            border-radius: 12px;
+            background: white;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            margin: 14px 0 6px;
+            font-weight: 600;
+        }
+
+        input, button {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #bdcccf;
+            border-radius: 7px;
+            font: inherit;
+        }
+
+        button {
+            margin-top: 16px;
+            border: 0;
+            color: white;
+            background: #126b68;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #0c5653;
+        }
+
+        .inventory {
+            grid-column: 1 / -1;
+        }
+
+        .inventory-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .inventory-heading button {
+            width: auto;
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 11px 8px;
+            border-bottom: 1px solid #e6edef;
+        }
+
+        .message {
+            min-height: 1.4em;
+            margin-bottom: 0;
+            color: #126b68;
+        }
+
+        .message.error {
+            color: #b42318;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>QuickRelief</h1>
+    <p>Manage emergency supplies and submit allocation requests.</p>
+</header>
+
+<main>
+    <section>
+        <h2>Add or restock supplies</h2>
+        <form id="supply-form">
+            <label for="supply-name">Item name</label>
+            <input id="supply-name" name="itemName" required maxlength="100">
+            <label for="supply-quantity">Quantity</label>
+            <input id="supply-quantity" name="quantity" type="number" min="1" required>
+            <button type="submit">Save supply</button>
+        </form>
+        <p class="message" id="supply-message" role="status"></p>
+    </section>
+
+    <section>
+        <h2>Request supplies</h2>
+        <form id="request-form">
+            <label for="request-name">Item name</label>
+            <input id="request-name" name="itemName" required maxlength="100">
+            <label for="request-quantity">Quantity</label>
+            <input id="request-quantity" name="quantity" type="number" min="1" required>
+            <label for="requested-by">Requested by</label>
+            <input id="requested-by" name="requestedBy" required maxlength="100">
+            <button type="submit">Submit request</button>
+        </form>
+        <p class="message" id="request-message" role="status"></p>
+    </section>
+
+    <section class="inventory">
+        <div class="inventory-heading">
+            <h2>Supply inventory</h2>
+            <button id="refresh-button" type="button">Refresh</button>
+        </div>
+        <p id="inventory-message" role="status">Loading supplies…</p>
+        <table>
+            <thead>
+            <tr><th>Item</th><th>Available quantity</th></tr>
+            </thead>
+            <tbody id="supply-list"></tbody>
+        </table>
+    </section>
+</main>
+
+<script>
+    async function readError(response) {
+        try {
+            const body = await response.json();
+            return body.error || body.message || `Request failed (${response.status})`;
+        } catch {
+            return `Request failed (${response.status})`;
+        }
+    }
+
+    async function loadSupplies() {
+        const message = document.getElementById("inventory-message");
+        const list = document.getElementById("supply-list");
+        message.textContent = "Loading supplies…";
+        list.replaceChildren();
+
+        try {
+            const response = await fetch("/api/supplies");
+            if (!response.ok) {
+                throw new Error(await readError(response));
+            }
+
+            const supplies = await response.json();
+            if (supplies.length === 0) {
+                message.textContent = "No supplies yet. Add one using the form above.";
+                return;
+            }
+
+            for (const supply of supplies) {
+                const row = document.createElement("tr");
+                const name = document.createElement("td");
+                const quantity = document.createElement("td");
+                name.textContent = supply.itemName;
+                quantity.textContent = supply.quantity;
+                row.append(name, quantity);
+                list.append(row);
+            }
+            message.textContent = "";
+        } catch (error) {
+            message.textContent = error.message;
+        }
+    }
+
+    function showMessage(element, text, isError) {
+        element.textContent = text;
+        element.classList.toggle("error", isError);
+    }
+
+    document.getElementById("supply-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const message = document.getElementById("supply-message");
+        const data = new FormData(form);
+
+        try {
+            const response = await fetch("/api/supplies", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    itemName: data.get("itemName"),
+                    quantity: Number(data.get("quantity"))
+                })
+            });
+            if (!response.ok) {
+                throw new Error(await readError(response));
+            }
+            form.reset();
+            showMessage(message, "Supply saved.", false);
+            await loadSupplies();
+        } catch (error) {
+            showMessage(message, error.message, true);
+        }
+    });
+
+    document.getElementById("request-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const message = document.getElementById("request-message");
+        const data = new FormData(form);
+
+        try {
+            const response = await fetch("/api/requests", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    itemName: data.get("itemName"),
+                    quantity: Number(data.get("quantity")),
+                    requestedBy: data.get("requestedBy")
+                })
+            });
+            if (!response.ok) {
+                throw new Error(await readError(response));
+            }
+            form.reset();
+            showMessage(message, "Request submitted and approved.", false);
+            await loadSupplies();
+        } catch (error) {
+            showMessage(message, error.message, true);
+        }
+    });
+
+    document.getElementById("refresh-button").addEventListener("click", loadSupplies);
+    loadSupplies();
+</script>
+</body>
+</html>
